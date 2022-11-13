@@ -1,5 +1,7 @@
 # Houdini ogre
 
+https://user-images.githubusercontent.com/1709642/201538450-ba0e009e-6b7f-46a7-899f-2f00c955933a.mp4
+
 This bug involves an ogre "teleporting" a large distance. It Can be easily
 reproduced on the
 [gor1f map](https://quake.speeddemosarchive.com/quake/maps/gor1.zip).  Quoting
