@@ -25,7 +25,7 @@ from around (71.7 -2095.8 -280.0) to (-216.8 -1807.3 -280.0).  Inserting a gdb
 watchpoint to check when the x component goes below zero yields the following
 stack trace:
 
-```
+```c
 Old value = 71.7053146
 New value = -216.794189
 0x00005555555e7e9c in SV_movestep (ent=0x555557abde48, move=0x7fffffffd900, relink=false)
@@ -50,11 +50,12 @@ New value = -216.794189
 ```
 
 From the stack, we can see the ogre is attempting to move a distance of -408
-units, at an angle of 5.498 radians (315 degrees).  This function
+units, at an angle of 5.498 radians (315 degrees).  For reference, the player is
+56 units tall, so 408 is a huge distance to move in one step.  The function
 `SV_MoveToGoal` is called directly from QuakeC, and the distance value is a
 parameter passed into the function.
 
-We can also print the QuakeC stack trace in GDB:
+To go further, we must look at the QuakeC stack:
 
 ```
 (gdb) p PR_StackTrace()
@@ -64,9 +65,21 @@ We can also print the QuakeC stack trace in GDB:
 $14 = void
 ```
 
-I believe the culprit is in the `ogre_smash12` definition:
+This shows us that `ai_charge` calls `SV_MoveToGoal`.  The distance parameter
+(`d`) is simply passed through.
 
+```c
+void(float d) ai_charge =
+{
+	ai_face ();
+	movetogoal (d);		// done in C code...
+};
 ```
+
+The next function in the QuakeC stack frame, `ogre_smash12`, appears to be the
+culprit:
+
+```c
 void() ogre_smash1      =[      $smash1,                ogre_smash2     ] {ai_charge(6);
 sound (self, CHAN_WEAPON, "ogre/ogsawatk.wav", 1, ATTN_NORM);
 };
@@ -86,11 +99,11 @@ void() ogre_smash13     =[      $smash13,               ogre_smash14 ] {ai_charg
 void() ogre_smash14     =[      $smash14,               ogre_run1       ] {ai_charge(12);};
 ```
 
-As you can see, most of the calls to `ai_charge` take an argument, which is in
-fact a distance to move.  All except for `ogre_smash12`.  I believe this is the
-source of the bug --- without an argument the QuakeC interpreter will just
-re-use the argument of the most recent function call that takes an argument,
-which in this case happens to be -408.
+As you can see, most of the calls to `ai_charge` take an argument, which is the
+distance to move.  All except for `ogre_smash12`.  I believe this is the source
+of the bug --- without an argument the QuakeC interpreter will just re-use the
+value passed as the first argument to some earlier function call, which in this
+case happens to be -408.
 
 
 ## Thomas Stubgaard's legendary e3m7 ER
@@ -119,11 +132,13 @@ drops down and is shot at by the player at the 9.7 second mark.  The other ogre
 corridor the ogre normally blocks (at ~12 seconds), the houdini ogre is out of
 the way in the next room.
 
-This time of approximately 5.5 seconds seems like enough time for the ogre to
-make its way into the next room.   Importing the demo into blender, you can
-briefly catch the ogre in the act of running into the side room:
+This time of approximately 5.5 seconds from waking the ogre to the player being
+in the corridor seems like enough time for the ogre to make its way into the
+next room.   Importing the demo into Blender, you can briefly catch the ogre in
+the act of running into the side room:
 
 https://user-images.githubusercontent.com/1709642/201537549-ed53b97a-deb4-49b6-9537-32057fb9f89e.mp4
 
 The ogre isn't always visible due to PVS, but the red arrow shows when he
-briefly appears.
+briefly appears, and can be seen running into the fiend area in the bottom
+right.
