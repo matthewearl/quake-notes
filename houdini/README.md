@@ -121,7 +121,7 @@ This time of approximately 5.5 seconds seems like enough time for the ogre to
 make its way into the next room.   Importing the demo into blender, you can
 briefly catch the ogre in the act of running into the side room:
 
-![ogre sneaking into side room](blender.mp4?raw=true)
+https://user-images.githubusercontent.com/1709642/201537549-ed53b97a-deb4-49b6-9537-32057fb9f89e.mp4
 
 The ogre isn't always visible due to PVS, but the red arrow shows when he
 briefly appears.
