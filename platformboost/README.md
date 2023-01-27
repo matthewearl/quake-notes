@@ -86,3 +86,9 @@ hair above the surface.
 The player can freely move around in this state, and generally won't move away.
 In fact, as the lift descends, accumulating floating point error means the
 player sinks into the platform and eventually intersects, triggering the boost.
+
+## Resources
+
+[Save game for repro'ing the E4M2 jump](assets/e2m2-squish-repro.sav)
+[Diff for debugging](assets/debug.diff)
+

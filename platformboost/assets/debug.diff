@@ -1,0 +1,106 @@
+diff --git a/Quake/sv_phys.c b/Quake/sv_phys.c
+index dfff66c5..71882c14 100644
+--- a/Quake/sv_phys.c
++++ b/Quake/sv_phys.c
+@@ -241,6 +241,7 @@ If steptrace is not NULL, the trace of any vertical wall hit will be stored
+ ============
+ */
+ #define	MAX_CLIP_PLANES	5
++extern qboolean move_debug;
+ int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
+ {
+ 	int			bumpcount, numbumps;
+@@ -272,7 +273,9 @@ int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
+ 		for (i=0 ; i<3 ; i++)
+ 			end[i] = ent->v.origin[i] + time_left * ent->v.velocity[i];
+ 
++		move_debug = bumpcount == 0 && NUM_FOR_EDICT(ent) == 1;
+ 		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, false, ent);
++		move_debug = false;
+ 
+ 		if (trace.allsolid)
+ 		{	// entity is trapped in another solid
+@@ -813,6 +816,13 @@ void SV_WalkMove (edict_t *ent)
+ //
+ // do a regular slide move unless it looks like you ran into a step
+ //
++	if (((int)ent->v.flags & FL_ONGROUND)) {
++		edict_t *ground_ent;
++		ground_ent = PROG_TO_EDICT(ent->v.groundentity);
++		Sys_Printf("--- ground_ent:%d dist:%f\n",
++				NUM_FOR_EDICT(ground_ent),
++				ent->v.origin[2] - ground_ent->v.origin[2]);
++	}
+ 	oldonground = (int)ent->v.flags & FL_ONGROUND;
+ 	ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
+ 
+diff --git a/Quake/world.c b/Quake/world.c
+index 475cef65..b8821bb2 100644
+--- a/Quake/world.c
++++ b/Quake/world.c
+@@ -603,6 +603,8 @@ SV_RecursiveHullCheck
+ 
+ ==================
+ */
++qboolean move_debug = false;
++qboolean move_debug2 = false;
+ qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
+ {
+ 	mclipnode_t	*node; //johnfitz -- was dclipnode_t
+@@ -614,6 +616,10 @@ qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec
+ 	int			side;
+ 	float		midf;
+ 
++	if (move_debug && move_debug2) {
++		Sys_Printf("entering %d\n", num);
++	}
++
+ // check for empty
+ 	if (num < 0)
+ 	{
+@@ -649,6 +655,10 @@ qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec
+ 		t1 = DoublePrecisionDotProduct (plane->normal, p1) - plane->dist;
+ 		t2 = DoublePrecisionDotProduct (plane->normal, p2) - plane->dist;
+ 	}
++	if (move_debug && move_debug2) {
++		// Useful for locating vertical split planes.
++		Sys_Printf("t1 = %f t2 = %f\n", t1, t2);
++	}
+ 
+ #if 1
+ 	if (t1 >= 0 && t2 >= 0)
+@@ -676,6 +686,13 @@ qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec
+ 	for (i=0 ; i<3 ; i++)
+ 		mid[i] = p1[i] + frac*(p2[i] - p1[i]);
+ 
++	if (move_debug
++			&& move_debug2
++			&& plane->normal[2] == 0) {
++		// Just crossed a vertical split plane, print how close to the surface we are.
++		Con_Printf("%f\n", mid[2]);
++	}
++
+ 	side = (t1 < 0);
+ 
+ // move up to the node
+@@ -786,6 +803,7 @@ SV_ClipToLinks
+ Mins and maxs enclose the entire area swept by the move
+ ====================
+ */
++extern qboolean move_debug2;
+ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
+ {
+ 	link_t		*l, *next;
+@@ -829,10 +847,12 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
+ 				continue;	// don't clip against owner
+ 		}
+ 
++		move_debug2 = PROG_TO_EDICT(clip->passedict->v.groundentity) == touch;
+ 		if ((int)touch->v.flags & FL_MONSTER)
+ 			trace = SV_ClipMoveToEntity (touch, clip->start, clip->mins2, clip->maxs2, clip->end);
+ 		else
+ 			trace = SV_ClipMoveToEntity (touch, clip->start, clip->mins, clip->maxs, clip->end);
++		move_debug2 = false;
+ 		if (trace.allsolid || trace.startsolid ||
+ 		trace.fraction < clip->trace.fraction)
+ 		{
